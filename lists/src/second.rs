@@ -1,13 +1,9 @@
-use std::mem;
-
 pub struct List {
     head: Link,
 }
 
-enum Link {
-    Empty,
-    More(Box<Node>),
-}
+// yay type aliases!
+type Link = Option<Box<Node>>;
 
 struct Node {
     elem: i32,
@@ -16,65 +12,34 @@ struct Node {
 
 impl List {
     pub fn new() -> Self {
-        List { head: Link::Empty }
+        List { head: None }
     }
 
     pub fn push(&mut self, elem: i32) {
         let new_node = Box::new(Node {
             elem,
-            next: mem::replace(&mut self.head, Link::Empty),
+            next: self.head.take(),
         });
 
-        self.head = Link::More(new_node);
+        self.head = Some(new_node);
     }
 
     pub fn pop(&mut self) -> Option<i32> {
-        match mem::replace(&mut self.head, Link::Empty) {
-            Link::Empty => None,
-            Link::More(node) => {
-                self.head = node.next;
-                Some(node.elem)
-            },
-        }
+        self.head.take().map(|node| {
+            self.head = node.next;
+            node.elem
+        })
     }
 }
 
 impl Drop for List {
     fn drop(&mut self) {
-        let mut cur_link = mem::replace(&mut self.head, Link::Empty);
-        // `while let` == "do this thing until this pattern doesn't match"
-        while let Link::More(mut boxed_node) = cur_link {
-            cur_link = mem::replace(&mut boxed_node.next, Link::Empty);
-            // boxed_node goes out of scope and gets dropped here;
-            // but its Node's `next` field has been set to Link::Empty
-            // so no unbounded recursion occurs.
+        let mut cur_link = self.head.take();
+        while let Some(mut boxed_node) = cur_link {
+            cur_link = boxed_node.next.take();
         }
     }
 }
-
-/*impl Drop for Link {
-    fn drop(&mut self) {
-        match *self {
-            Link::Empty => {}, // Done!
-            Link::More(ref mut boxed_node) => {
-                boxed_node.drop(); // tail recursive - good!
-            },
-        }
-    }
-}
-
-impl Drop for Box<Node> {
-    fn drop(&mut self) {
-        self.ptr.drop(); // uh, oh not tail recursive!
-        deallocate(self.ptr);
-    }
-}
-
-impl Drop for Node {
-    fn drop(&mut self) {
-        self.next.drop();
-    }
-}*/
 
 #[cfg(test)]
 mod test {
