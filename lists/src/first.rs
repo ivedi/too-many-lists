@@ -39,6 +39,44 @@ impl List {
     }
 }
 
+impl Drop for List {
+    fn drop(&mut self) {
+        let mut cur_link = mem::replace(&mut self.head, Link::Empty);
+        // `while let` == "do this thing until this pattern doesn't match"
+        while let Link::More(mut boxed_node) = cur_link {
+            cur_link = mem::replace(&mut boxed_node.next, Link::Empty);
+            // boxed_node goes out of scope and gets dropped here;
+            // but its Node's `next` field has been set to Link::Empty
+            // so no unbounded recursion occurs.
+        }
+    }
+}
+
+/*impl Drop for Link {
+    fn drop(&mut self) {
+        match *self {
+            Link::Empty => {}, // Done!
+            Link::More(ref mut boxed_node) => {
+                boxed_node.drop(); // tail recursive - good!
+            },
+        }
+    }
+}
+
+impl Drop for Box<Node> {
+    fn drop(&mut self) {
+        self.ptr.drop(); // uh, oh not tail recursive!
+        deallocate(self.ptr);
+    }
+}
+
+impl Drop for Node {
+    fn drop(&mut self) {
+        self.next.drop();
+    }
+}*/
+
+#[cfg(test)]
 mod test {
     use super::List;
 
