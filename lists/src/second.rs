@@ -2,7 +2,6 @@ pub struct List<T> {
     head: Link<T>,
 }
 
-// yay type aliases!
 type Link<T> = Option<Box<Node<T>>>;
 
 struct Node<T> {
@@ -46,6 +45,14 @@ impl<T> List<T> {
     pub fn into_iter(self) -> IntoIter<T> {
         IntoIter(self)
     }
+
+    pub fn iter(&self) -> Iter<'_, T> {
+        Iter { next: self.head.as_deref() }
+    }
+
+    pub fn iter_mut(&mut self) -> IterMut<'_, T> {
+        IterMut { next: self.head.as_deref_mut() }
+    }
 }
 
 impl<T> Drop for List<T> {
@@ -57,8 +64,6 @@ impl<T> Drop for List<T> {
     }
 }
 
-// Tuple structs are an alternative form of struct,
-// useful for trivial wrappers around other types.
 pub struct IntoIter<T>(List<T>);
 
 impl<T> Iterator for IntoIter<T> {
@@ -69,32 +74,15 @@ impl<T> Iterator for IntoIter<T> {
     }
 }
 
-// Iter is a generic over *some* lifetime, it doesn't care
 pub struct Iter<'a, T> {
     next: Option<&'a Node<T>>,
 }
 
-// No lifetime here, List doesn't have any associated lifetimes
-impl<T> List<T> {
-    // We declare a fresh lifetime here for the *exact* borrow that
-    // creates the iter. Now &self needs to be valid as long as the
-    // Iter is around.
-    pub fn iter(&self) -> Iter<T> {
-        Iter { next: self.head.as_deref() }
-    }
-}
-
-// We *do* have a lifetime here, because Iter has one that we need to define
 impl<'a, T> Iterator for Iter<'a, T> {
-    // Need it here too, this is a type declaration
     type Item = &'a T;
-
-    // None of this needs to change, handled by the above.
-    // Self continues to be incredibly hyep and amazing
     fn next(&mut self) -> Option<Self::Item> {
         self.next.map(|node| {
-            // self.next = node.next.as_deref();
-            self.next = node.next.as_ref().map::<&Node<T>, _>(|node| &node);
+            self.next = node.next.as_deref();
             &node.elem
         })
     }
@@ -102,12 +90,6 @@ impl<'a, T> Iterator for Iter<'a, T> {
 
 pub struct IterMut<'a, T> {
     next: Option<&'a mut Node<T>>,
-}
-
-impl<T> List<T> {
-    pub fn iter_mut(&mut self) -> IterMut<'_, T> {
-        IterMut { next: self.head.as_deref_mut() }
-    }
 }
 
 impl<'a, T> Iterator for IterMut<'a, T> {
@@ -151,7 +133,7 @@ mod test {
 
         // Check exhaustion
         assert_eq!(list.pop(), Some(1));
-        assert_eq!(list.pop(), None); 
+        assert_eq!(list.pop(), None);
     }
 
     #[test]
@@ -165,6 +147,7 @@ mod test {
 
         assert_eq!(list.peek(), Some(&3));
         assert_eq!(list.peek_mut(), Some(&mut 3));
+
         list.peek_mut().map(|value| {
             *value = 42
         });
@@ -198,7 +181,6 @@ mod test {
         assert_eq!(iter.next(), Some(&3));
         assert_eq!(iter.next(), Some(&2));
         assert_eq!(iter.next(), Some(&1));
-        assert_eq!(iter.next(), None);
     }
 
     #[test]
@@ -213,5 +195,4 @@ mod test {
         assert_eq!(iter.next(), Some(&mut 2));
         assert_eq!(iter.next(), Some(&mut 1));
     }
-
 }
